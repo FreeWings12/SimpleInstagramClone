@@ -1,0 +1,58 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Like;
+use Illuminate\Http\Request;
+use Intervention\Image\Facades\Image;
+use App\Post;
+use App\User;
+
+class PostsController extends Controller
+{
+    public function __construct() 
+    {
+        return $this->middleware('auth')->except('index');
+    } 
+
+    public function index() 
+    {
+
+        // $users = auth()->user()->following()->pluck('profiles.user_id');
+        // $posts = Post::whereIn('user_id', $users)->with('user')->latest()->paginate(5);
+        $posts = Post::inRandomOrder()->paginate(10);
+        return view('posts.index', compact('posts'));
+    }
+
+    public function create() 
+    {
+        return view('posts.create');
+    }
+
+    public function store() 
+    {
+        $data = request()->validate([
+            'caption' => 'required',
+            'image' => ['required', 'image'],
+        ]);
+
+        $imagePath = request('image')->store('uploads','public');
+        $image = Image::make(public_path("storage/{$imagePath}"))->fit(1200, 1200);
+        $image->save();
+
+        auth()->user()->posts()->create([
+            'caption' => $data['caption'],
+            'image' => $imagePath,
+        ]);
+        return redirect('profile/'. auth()->user()->id. '-'. auth()->user()->username);
+    }
+
+    public function show(Post $post) 
+    {
+
+        $like = Like::where('post_id', $post->id)->where('user_id', auth()->user()->id)->first();
+        $countLikes = Like::where('post_id', $post->id)->get()->count();
+        return view('posts.show', compact('post', 'like', 'countLikes'));
+    }
+
+}
